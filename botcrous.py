@@ -3,8 +3,8 @@ import time
 import json
 from bs4 import BeautifulSoup
 
-TOKEN = "8657413634:AAFmpdcJrXnhxWHjxwJvjSFoPoVj2bf_JjI"
-CHAT_ID = "8286941156"
+TOKEN = os.getenv("8657413634:AAFmpdcJrXnhxWHjxwJvjSFoPoVj2bf_JjI")
+CHAT_ID = os.getenv("8286941156")
 
 URL = "https://trouverunlogement.lescrous.fr/tools/41/search?region=11"
 
