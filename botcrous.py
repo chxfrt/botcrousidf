@@ -1,83 +1,35 @@
 import os
 import requests
-import time
-import json
 from bs4 import BeautifulSoup
 
 TOKEN = os.getenv("8657413634:AAFmpdcJrXnhxWHjxwJvjSFoPoVj2bf_JjI")
 CHAT_ID = os.getenv("8286941156")
 
-URL = "https://trouverunlogement.lescrous.fr/tools/41/search?region=11"
-
-SEEN_FILE = "seen.json"
+# URL CROUS Île-de-France
+URL = "https://trouverunlogement.lescrous.fr/tools/37/search?bounds=48.1207_1.4472_49.2415_3.5592"
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     data = {
         "chat_id": CHAT_ID,
-        "text": message,
-        "parse_mode": "HTML"
+        "text": message
     }
     requests.post(url, data=data)
 
-def load_seen():
-    try:
-        with open(SEEN_FILE, "r") as f:
-            return set(json.load(f))
-    except:
-        return set()
-
-def save_seen(seen):
-    with open(SEEN_FILE, "w") as f:
-        json.dump(list(seen), f)
-
-def get_logements():
-    headers = {"User-Agent": "Mozilla/5.0"}
-    response = requests.get(URL, headers=headers)
-
+def check_crous():
+    response = requests.get(URL)
     soup = BeautifulSoup(response.text, "html.parser")
 
-    logements = []
-    cards = soup.find_all("div", class_="fr-card")
+    logements = soup.find_all("article")
 
-    for card in cards:
-        link_tag = card.find("a")
-        if not link_tag:
-            continue
+    if not logements:
+        print("Aucun logement trouvé")
+        return
 
-        link = "https://trouverunlogement.lescrous.fr" + link_tag["href"]
-        title = card.get_text(strip=True)
+    for logement in logements[:3]:  # limite pour éviter spam
+        titre = logement.get_text(strip=True)[:100]
+        send_telegram(f"🏠 Nouveau logement CROUS IDF:\n{titre}")
 
-        logements.append({
-            "id": link,
-            "title": title,
-            "link": link
-        })
-
-    return logements
-
-def main():
-    seen = load_seen()
-
-    send_telegram("✅ Bot CROUS lancé !")
-
-    while True:
-        try:
-            logements = get_logements()
-
-            for logement in logements:
-                if logement["id"] not in seen:
-                    message = f"🏠 Nouveau logement CROUS IDF\n\n{logement['title']}\n{logement['link']}"
-                    send_telegram(message)
-                    seen.add(logement["id"])
-
-            save_seen(seen)
-
-            time.sleep(120)
-
-        except Exception as e:
-            print("Erreur:", e)
-            time.sleep(60)
-
-if __name__ == "__main__":
-    main()
+# 🔥 IMPORTANT : UNE SEULE EXÉCUTION
+send_telegram("✅ Bot CROUS actif (GitHub Actions)")
+check_crous()
