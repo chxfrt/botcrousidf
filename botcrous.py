@@ -33,3 +33,4 @@ def check_crous():
 # 🔥 IMPORTANT : UNE SEULE EXÉCUTION
 send_telegram("✅ Bot CROUS actif (GitHub Actions)")
 check_crous()
+#update
