@@ -5,7 +5,7 @@ from datetime import datetime
 TOKEN = os.getenv("TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-API_URL = "https://trouverunlogement.lescrous.fr/api/fr/search"
+API_URL = "https://trouverunlogement.lescrous.fr/api/fr/search/42"
 
 def log(msg):
     print(f"[{datetime.now()}] {msg}")
@@ -21,36 +21,68 @@ def send_telegram(message):
 def check_crous():
     log("------ SCAN API CROUS ------")
 
-    params = {
-        "bounds": "48.1207_1.4472_49.2415_3.5592",
-        "page": 1,
-        "pageSize": 20
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json",
+        "Origin": "https://trouverunlogement.lescrous.fr",
+        "Referer": "https://trouverunlogement.lescrous.fr/"
     }
 
-    r = requests.get(API_URL, params=params)
-    log(f"HTTP: {r.status_code}")
+    payload = {
+        "idTool": 42,
+        "need_aggregation": True,
+        "page": 1,
+        "pageSize": 24,
+        "sector": None,
+        "occupationModes": [],
+        "location": [
+            {"lon": 1.4462445, "lat": 49.241431},
+            {"lon": 3.5592208, "lat": 48.1201456}
+        ],
+        "residence": None,
+        "precision": 4,
+        "equipment": [],
+        "price": {"max": 10000000},
+        "area": {"min": 0},
+        "adaptedPmr": False,
+        "toolMechanism": "flow"
+    }
 
-    data = r.json()
-    logements = data.get("results", [])
+    try:
+        r = requests.post(API_URL, json=payload, headers=headers)
+        log(f"HTTP: {r.status_code}")
 
-    log(f"{len(logements)} logements trouvés")
+        if r.status_code != 200:
+            log("❌ Erreur API")
+            log(r.text[:300])
+            return
 
-    if not logements:
-        log("⚠️ Aucun logement trouvé")
-        return
+        data = r.json()
+        logements = data.get("results", [])
 
-    for logement in logements[:3]:
-        titre = logement.get("title", "Sans titre")
-        ville = logement.get("city", "Ville inconnue")
+        log(f"{len(logements)} logements trouvés")
 
-        log(f"ENVOI: {titre}")
-        send_telegram(f"🏠 {titre}\n📍 {ville}")
+        if not logements:
+            log("⚠️ Aucun logement trouvé")
+            return
+
+        for logement in logements[:3]:
+            titre = logement.get("title", "Sans titre")
+            ville = logement.get("city", "Ville inconnue")
+
+            message = f"🏠 {titre}\n📍 {ville}"
+            log(f"ENVOI: {titre}")
+            send_telegram(message)
+
+    except Exception as e:
+        log(f"❌ ERREUR: {e}")
 
 # 🚀 Lancement
 log("🚀 BOT LANCÉ")
 
 if TOKEN and CHAT_ID:
-    send_telegram("✅ Bot CROUS actif (API)")
+    send_telegram("✅ Bot CROUS actif")
     check_crous()
 else:
     log("❌ TOKEN ou CHAT_ID manquant")
