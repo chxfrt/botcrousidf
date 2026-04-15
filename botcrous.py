@@ -26,21 +26,15 @@ def save_seen(seen):
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    r = requests.post(url, data={
+    requests.post(url, data={
         "chat_id": CHAT_ID,
         "text": message
     })
-    log(f"TELEGRAM: {r.status_code}")
 
 def check_crous():
-    log("------ SCAN API CROUS ------")
-
     headers = {
         "Content-Type": "application/json",
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json",
-        "Origin": "https://trouverunlogement.lescrous.fr",
-        "Referer": "https://trouverunlogement.lescrous.fr/"
+        "User-Agent": "Mozilla/5.0"
     }
 
     payload = {
@@ -48,67 +42,49 @@ def check_crous():
         "need_aggregation": True,
         "page": 1,
         "pageSize": 24,
-        "sector": None,
-        "occupationModes": [],
         "location": [
             {"lon": 1.4462445, "lat": 49.241431},
             {"lon": 3.5592208, "lat": 48.1201456}
         ],
-        "residence": None,
         "precision": 4,
-        "equipment": [],
         "price": {"max": 10000000},
         "area": {"min": 0},
         "adaptedPmr": False,
         "toolMechanism": "flow"
     }
 
-    try:
-        r = requests.post(API_URL, json=payload, headers=headers)
-        log(f"HTTP: {r.status_code}")
+    r = requests.post(API_URL, json=payload, headers=headers)
 
-        if r.status_code != 200:
-            log("❌ Erreur API")
-            log(r.text[:300])
-            return
+    if r.status_code != 200:
+        log("Erreur API")
+        return
 
-        data = r.json()
-        logements = data.get("results", {}).get("items", [])
+    data = r.json()
+    logements = data.get("results", {}).get("items", [])
 
-        log(f"{len(logements)} logements trouvés")
+    seen = load_seen()
+    new_seen = set(seen)
 
-        if not logements:
-            log("⚠️ Aucun logement trouvé")
-            return
+    for logement in logements:
+        logement_id = str(logement.get("id"))
 
-        seen = load_seen()
-        new_seen = set(seen)
+        if logement_id in seen:
+            continue
 
-        for logement in logements:
-            logement_id = str(logement.get("id"))
+        message = "🏠 CROUS\n📍 Île-de-France"
+        send_telegram(message)
 
-            # 👉 skip si déjà vu
-            if logement_id in seen:
-                continue
+        new_seen.add(logement_id)
 
-            titre = logement.get("title") or "CROUS"
-            ville = logement.get("city") or "Île-de-France"
+    save_seen(new_seen)
 
-            message = f"🏠 {titre}\n📍 {ville}"
-            log(f"NOUVEAU: {logement_id}")
-            send_telegram(message)
+    # 🔥 push automatique sur GitHub
+    os.system("git config --global user.email 'bot@github.com'")
+    os.system("git config --global user.name 'github-bot'")
+    os.system("git add seen.txt")
+    os.system("git commit -m 'update seen'")
+    os.system("git push")
 
-            new_seen.add(logement_id)
-
-        save_seen(new_seen)
-
-    except Exception as e:
-        log(f"❌ ERREUR: {e}")
-
-# 🚀 Lancement
-log("🚀 BOT LANCÉ")
-
+# 🚀 lancement
 if TOKEN and CHAT_ID:
     check_crous()
-else:
-    log("❌ TOKEN ou CHAT_ID manquant")
