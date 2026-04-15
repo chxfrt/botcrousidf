@@ -59,7 +59,7 @@ def check_crous():
             return
 
         data = r.json()
-        logements = data.get("results", [])
+        logements = data.get("results", {}).get("items", [])
 
         log(f"{len(logements)} logements trouvés")
 
@@ -68,8 +68,8 @@ def check_crous():
             return
 
         for logement in logements[:3]:
-            titre = logement.get("title", "Sans titre")
-            ville = logement.get("city", "Ville inconnue")
+            titre = logement.get("title", "Crous")
+            ville = logement.get("city", "Ile-de-france")
 
             message = f"🏠 {titre}\n📍 {ville}"
             log(f"ENVOI: {titre}")
