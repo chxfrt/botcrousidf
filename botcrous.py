@@ -7,8 +7,22 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 API_URL = "https://trouverunlogement.lescrous.fr/api/fr/search/42"
 
+SEEN_FILE = "seen.txt"
+
 def log(msg):
     print(f"[{datetime.now()}] {msg}")
+
+def load_seen():
+    try:
+        with open(SEEN_FILE, "r") as f:
+            return set(f.read().splitlines())
+    except:
+        return set()
+
+def save_seen(seen):
+    with open(SEEN_FILE, "w") as f:
+        for item in seen:
+            f.write(item + "\n")
 
 def send_telegram(message):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
@@ -67,13 +81,26 @@ def check_crous():
             log("⚠️ Aucun logement trouvé")
             return
 
-        for logement in logements[:3]:
-            titre = logement.get("title", "Crous")
-            ville = logement.get("city", "Ile-de-france")
+        seen = load_seen()
+        new_seen = set(seen)
+
+        for logement in logements:
+            logement_id = str(logement.get("id"))
+
+            # 👉 skip si déjà vu
+            if logement_id in seen:
+                continue
+
+            titre = logement.get("title") or "CROUS"
+            ville = logement.get("city") or "Île-de-France"
 
             message = f"🏠 {titre}\n📍 {ville}"
-            log(f"ENVOI: {titre}")
+            log(f"NOUVEAU: {logement_id}")
             send_telegram(message)
+
+            new_seen.add(logement_id)
+
+        save_seen(new_seen)
 
     except Exception as e:
         log(f"❌ ERREUR: {e}")
@@ -82,7 +109,6 @@ def check_crous():
 log("🚀 BOT LANCÉ")
 
 if TOKEN and CHAT_ID:
-    send_telegram("✅ Bot CROUS actif")
     check_crous()
 else:
     log("❌ TOKEN ou CHAT_ID manquant")
