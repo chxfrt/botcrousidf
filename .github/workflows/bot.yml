@@ -2,7 +2,7 @@ name: Bot CROUS
 
 on:
   schedule:
-    - cron: "*/2 * * * *"  # toutes les 2 minutes
+    - cron: "*/5 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -10,19 +10,31 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Télécharger le code
+      - name: Checkout repo
         uses: actions/checkout@v3
 
-      - name: Installer Python
+      - name: Download seen file
+        uses: actions/download-artifact@v4
+        with:
+          name: seen
+        continue-on-error: true
+
+      - name: Setup Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Installer les dépendances
-        run: pip install -r requirements.txt
+      - name: Install dependencies
+        run: pip install requests
 
-      - name: Lancer le bot
+      - name: Run bot
+        run: python botcrous.py
         env:
           TOKEN: ${{ secrets.TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: python botcrous.py
+
+      - name: Upload seen file
+        uses: actions/upload-artifact@v4
+        with:
+          name: seen
+          path: seen.txt
